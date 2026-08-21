@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="ms">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+  name="viewport"
+  content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+>
+
+<meta name="theme-color" content="#4c1d95">
+
+<title>Smart Box Scanner</title>
+
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<style>
+
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+
+  min-height:100vh;
+
+  padding:
+    calc(15px + env(safe-area-inset-top))
+    13px
+    calc(25px + env(safe-area-inset-bottom));
+
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Arial,
+    sans-serif;
+
+  color:#111827;
+
+  background:
+    linear-gradient(
+      135deg,
+      #f5f3ff,
+      #ecfeff,
+      #fff7ed
+    );
+}
+
+.container{
+  max-width:650px;
+
+  margin:auto;
+}
+
+
+/* HERO */
+
+.hero{
+  padding:20px;
+
+  border-radius:25px;
+
+  margin-bottom:14px;
+
+  color:white;
+
+  background:
+    linear-gradient(
+      135deg,
+      #4c1d95,
+      #7c3aed,
+      #db2777,
+      #f97316
+    );
+
+  box-shadow:
+    0 12px 30px rgba(76,29,149,.25);
+}
+
+.hero.arrival{
+  background:
+    linear-gradient(
+      135deg,
+      #075985,
+      #0891b2,
+      #10b981
+    );
+}
+
+.hero-top{
+  display:flex;
+
+  justify-content:
+    space-between;
+
+  gap:10px;
+
+  align-items:center;
+}
+
+.hero h1{
+  margin:8px 0 3px;
+
+  font-size:23px;
+}
+
+.hero p{
+  margin:0;
+
+  opacity:.85;
+
+  font-size:12px;
+}
+
+.hero-icon{
+  font-size:38px;
+}
+
+
+/* METRIC */
+
+.metrics{
+  display:grid;
+
+  grid-template-columns:
+    repeat(3,1fr);
+
+  gap:8px;
+
+  margin-bottom:14px;
+}
+
+.metric{
+  padding:13px;
+
+  border-radius:18px;
+
+  text-align:center;
+
+  background:white;
+
+  box-shadow:
+    0 6px 18px rgba(15,23,42,.07);
+}
+
+.metric-value{
+  font-size:24px;
+
+  font-weight:900;
+}
+
+.metric-label{
+  margin-top:3px;
+
+  color:#64748b;
+
+  font-size:10px;
+}
+
+
+/* CARD */
+
+.card{
+  padding:15px;
+
+  margin-bottom:14px;
+
+  border-radius:22px;
+
+  background:white;
+
+  box-shadow:
+    0 8px 25px rgba(15,23,42,.08);
+}
+
+
+/* STATUS */
+
+.status{
+  padding:12px;
+
+  margin-bottom:12px;
+
+  border-radius:15px;
+
+  font-size:13px;
+
+  background:#fef3c7;
+
+  color:#92400e;
+}
+
+.status.green{
+  background:#dcfce7;
+
+  color:#166534;
+}
+
+.status.red{
+  background:#fee2e2;
+
+  color:#991b1b;
+}
+
+
+/* READER */
+
+#reader{
+  width:100%;
+
+  overflow:hidden;
+
+  border-radius:20px;
+}
+
+#reader video{
+  width:100% !important;
+
+  border-radius:20px;
+}
+
+
+/* BUTTON */
+
+button{
+  width:100%;
+
+  min-height:50px;
+
+  border:0;
+
+  border-radius:15px;
+
+  font-size:15px;
+
+  font-weight:800;
+}
+
+.primary{
+  color:white;
+
+  background:
+    linear-gradient(
+      135deg,
+      #6d28d9,
+      #db2777,
+      #f97316
+    );
+}
+
+.secondary{
+  margin-top:8px;
+
+  background:#f1f5f9;
+
+  color:#334155;
+}
+
+
+/* RESULT */
+
+.result{
+  display:none;
+
+  padding:16px;
+
+  border-radius:18px;
+
+  margin-top:12px;
+
+  text-align:center;
+}
+
+.result.show{
+  display:block;
+}
+
+.result.success{
+  color:#166534;
+
+  background:#dcfce7;
+}
+
+.result.warning{
+  color:#92400e;
+
+  background:#fef3c7;
+}
+
+.result.error{
+  color:#991b1b;
+
+  background:#fee2e2;
+}
+
+.result-code{
+  margin-top:5px;
+
+  font-size:22px;
+
+  font-weight:900;
+}
+
+
+/* HISTORY */
+
+.history{
+  display:grid;
+
+  gap:7px;
+}
+
+.history-item{
+  display:flex;
+
+  align-items:center;
+
+  justify-content:
+    space-between;
+
+  gap:8px;
+
+  padding:10px;
+
+  border-radius:13px;
+
+  background:#f8fafc;
+
+  font-size:12px;
+}
+
+.history-code{
+  font-weight:900;
+}
+
+.ok{
+  color:#166534;
+}
+
+.bad{
+  color:#991b1b;
+}
+
+
+/* CAMERA SELECT */
+
+select{
+  display:none;
+
+  width:100%;
+
+  min-height:46px;
+
+  margin-bottom:10px;
+
+  padding:10px;
+
+  border:
+    1px solid #e2e8f0;
+
+  border-radius:14px;
+
+  background:white;
+}
+
+
+/* MANUAL */
+
+input{
+  width:100%;
+
+  min-height:48px;
+
+  padding:12px;
+
+  border:
+    1px solid #e2e8f0;
+
+  border-radius:14px;
+
+  font-size:16px;
+
+  outline:none;
+}
+
+
+/* MOBILE */
+
+@media(max-width:450px){
+
+  .metric-value{
+    font-size:21px;
+  }
+
+  .metric{
+    padding:10px 5px;
+  }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+<div class="container">
+
+
+<!-- HERO -->
+
+<section
+  id="hero"
+  class="hero">
+
+<div class="hero-top">
+
+<div>
+
+<div id="modeLabel">
+  SCANNER
+</div>
+
+<h1 id="title">
+  Smart Box Scanner
+</h1>
+
+<p id="subtitle">
+  Scan kotak secara berterusan
+</p>
+
+</div>
+
+<div class="hero-icon">
+  📦📷
+</div>
+
+</div>
+
+</section>
+
+
+<!-- COUNTERS -->
+
+<section class="metrics">
+
+<div class="metric">
+
+<div
+  id="successCount"
+  class="metric-value">
+  0
+</div>
+
+<div class="metric-label">
+  BERJAYA
+</div>
+
+</div>
+
+
+<div class="metric">
+
+<div
+  id="duplicateCount"
+  class="metric-value">
+  0
+</div>
+
+<div class="metric-label">
+  DUPLICATE
+</div>
+
+</div>
+
+
+<div class="metric">
+
+<div
+  id="errorCount"
+  class="metric-value">
+  0
+</div>
+
+<div class="metric-label">
+  RALAT
+</div>
+
+</div>
+
+</section>
+
+
+<!-- CAMERA -->
+
+<section class="card">
+
+<div
+  id="status"
+  class="status">
+
+📷 Kamera sedang disediakan...
+
+</div>
+
+
+<select id="cameraSelect"></select>
+
+
+<div id="reader"></div>
+
+
+<button
+  id="startButton"
+  class="primary">
+
+📷 Buka Kamera
+
+</button>
+
+
+<button
+  id="stopButton"
+  class="secondary">
+
+⏹ Tutup Kamera
+
+</button>
+
+
+<div
+  id="result"
+  class="result">
+
+<div id="resultMessage"></div>
+
+<div
+  id="resultCode"
+  class="result-code">
+</div>
+
+</div>
+
+</section>
+
+
+<!-- MANUAL -->
+
+<section class="card">
+
+<strong>
+  Input Manual
+</strong>
+
+<p style="
+  margin:5px 0 10px;
+  font-size:12px;
+  color:#64748b;
+">
+  Digunakan jika QR rosak atau sukar dibaca.
+</p>
+
+<input
+  id="manualCode"
+  placeholder="Contoh: BOX-000001">
+
+<button
+  id="manualButton"
+  class="secondary">
+
+Hantar Kod
+
+</button>
+
+</section>
+
+
+<!-- HISTORY -->
+
+<section class="card">
+
+<strong>
+  Scan Terkini
+</strong>
+
+<div
+  id="history"
+  class="history"
+  style="margin-top:10px">
+
+<div class="history-item">
+
+<span>
+  Belum ada scan
+</span>
+
+</div>
+
+</div>
+
+</section>
+
+</div>
+
+
+<script>
+
+/* =====================================================
+   PARAMS
+===================================================== */
+
+const params =
+  new URLSearchParams(
+    location.search
+  );
+
+
+const MODE =
+  String(
+    params.get('mode') ||
+    'LOAD'
+  )
+  .toUpperCase();
+
+
+const TRIP_ID =
+  String(
+    params.get('trip') ||
+    ''
+  );
+
+
+const USER =
+  String(
+    params.get('user') ||
+    ''
+  );
+
+
+let scanner = null;
+
+let cameras = [];
+
+let scanLocked = false;
+
+let pendingRequest = null;
+
+let successCount = 0;
+
+let duplicateCount = 0;
+
+let errorCount = 0;
+
+let history = [];
+
+
+/* =====================================================
+   MODE UI
+===================================================== */
+
+if(
+  MODE ===
+  'ARRIVE'
+){
+
+  document
+    .getElementById(
+      'hero'
+    )
+    .classList.add(
+      'arrival'
+    );
+
+
+  document
+    .getElementById(
+      'modeLabel'
+    )
+    .textContent =
+      '📍 DESTINASI';
+
+
+  document
+    .getElementById(
+      'title'
+    )
+    .textContent =
+      'Scan Sampai Destinasi';
+
+
+  document
+    .getElementById(
+      'subtitle'
+    )
+    .textContent =
+      TRIP_ID +
+      ' • ' +
+      USER;
+
+}
+else{
+
+  document
+    .getElementById(
+      'modeLabel'
+    )
+    .textContent =
+      '🚚 LOADING';
+
+
+  document
+    .getElementById(
+      'title'
+    )
+    .textContent =
+      'Scan Masuk Lori';
+
+
+  document
+    .getElementById(
+      'subtitle'
+    )
+    .textContent =
+      TRIP_ID +
+      ' • ' +
+      USER;
+
+}
+
+
+/* =====================================================
+   START
+===================================================== */
+
+document
+  .getElementById(
+    'startButton'
+  )
+  .addEventListener(
+    'click',
+    startCamera
+  );
+
+
+document
+  .getElementById(
+    'stopButton'
+  )
+  .addEventListener(
+    'click',
+    stopCamera
+  );
+
+
+document
+  .getElementById(
+    'manualButton'
+  )
+  .addEventListener(
+    'click',
+    function(){
+
+      const code =
+        document
+          .getElementById(
+            'manualCode'
+          )
+          .value;
+
+
+      processCode(code);
+
+    }
+  );
+
+
+document
+  .getElementById(
+    'manualCode'
+  )
+  .addEventListener(
+    'keydown',
+    function(e){
+
+      if(
+        e.key ===
+        'Enter'
+      ){
+
+        processCode(
+          e.target.value
+        );
+
+      }
+
+    }
+  );
+
+
+document
+  .getElementById(
+    'cameraSelect'
+  )
+  .addEventListener(
+    'change',
+    function(){
+
+      startSpecificCamera(
+        this.value
+      );
+
+    }
+  );
+
+
+/* =====================================================
+   TRY CAMERA AUTOMATICALLY
+===================================================== */
+
+window.addEventListener(
+  'load',
+  function(){
+
+    /*
+      Safari mungkin block auto-start.
+      Jika block, pengguna hanya tekan
+      Buka Kamera sekali.
+    */
+
+    startCamera();
+
+  }
+);
+
+
+/* =====================================================
+   CAMERA
+===================================================== */
+
+async function startCamera(){
+
+  const status =
+    document.getElementById(
+      'status'
+    );
+
+
+  try{
+
+    status.className =
+      'status';
+
+
+    status.textContent =
+      '📷 Meminta akses kamera...';
+
+
+    if(
+      !navigator.mediaDevices ||
+      !navigator.mediaDevices.getUserMedia
+    ){
+
+      throw new Error(
+        'Browser tidak menyokong kamera.'
+      );
+
+    }
+
+
+    const permission =
+      await navigator.mediaDevices
+        .getUserMedia({
+
+          video:{
+            facingMode:{
+              ideal:'environment'
+            }
+          },
+
+          audio:false
+
+        });
+
+
+    permission
+      .getTracks()
+      .forEach(
+        function(track){
+
+          track.stop();
+
+        }
+      );
+
+
+    cameras =
+      await Html5Qrcode
+        .getCameras();
+
+
+    if(!cameras.length){
+
+      throw new Error(
+        'Tiada kamera ditemui.'
+      );
+
+    }
+
+
+    renderCameraSelector();
+
+
+    let back =
+      cameras.find(
+        function(cam){
+
+          const name =
+            String(
+              cam.label ||
+              ''
+            )
+            .toLowerCase();
+
+
+          return(
+            name.includes('back') ||
+            name.includes('rear') ||
+            name.includes('environment')
+          );
+
+        }
+      );
+
+
+    if(!back){
+
+      back =
+        cameras[
+          cameras.length - 1
+        ];
+
+    }
+
+
+    document
+      .getElementById(
+        'cameraSelect'
+      )
+      .value =
+        back.id;
+
+
+    await startSpecificCamera(
+      back.id
+    );
+
+
+    status.className =
+      'status green';
+
+
+    status.textContent =
+      '🎯 Kamera aktif. Scan kotak satu demi satu.';
+
+
+  }
+  catch(err){
+
+    console.error(err);
+
+
+    status.className =
+      'status red';
+
+
+    status.innerHTML =
+      '❌ Kamera belum dapat dibuka.<br>' +
+      'Tekan <strong>Buka Kamera</strong> untuk cuba semula.';
+
+
+    document
+      .getElementById(
+        'startButton'
+      )
+      .style.display =
+        'block';
+
+  }
+
+}
+
+
+/* =====================================================
+   CAMERA SELECT
+===================================================== */
+
+function renderCameraSelector(){
+
+  const select =
+    document.getElementById(
+      'cameraSelect'
+    );
+
+
+  select.innerHTML =
+    '';
+
+
+  cameras.forEach(
+    function(cam,index){
+
+      const option =
+        document.createElement(
+          'option'
+        );
+
+
+      option.value =
+        cam.id;
+
+
+      option.textContent =
+        cam.label ||
+        (
+          'Kamera ' +
+          (index + 1)
+        );
+
+
+      select.appendChild(
+        option
+      );
+
+    }
+  );
+
+
+  select.style.display =
+    cameras.length > 1
+      ?
+      'block'
+      :
+      'none';
+
+}
+
+
+/* =====================================================
+   START SPECIFIC
+===================================================== */
+
+async function startSpecificCamera(
+  cameraId
+){
+
+  await stopCamera();
+
+
+  document
+    .getElementById(
+      'reader'
+    )
+    .innerHTML =
+      '';
+
+
+  scanner =
+    new Html5Qrcode(
+      'reader'
+    );
+
+
+  await scanner.start(
+
+    cameraId,
+
+    {
+
+      fps:12,
+
+      qrbox:function(
+        width,
+        height
+      ){
+
+        return{
+
+          width:
+            Math.min(
+              290,
+              Math.floor(
+                width *
+                .82
+              )
+            ),
+
+          height:
+            Math.min(
+              200,
+              Math.floor(
+                height *
+                .45
+              )
+            )
+
+        };
+
+      }
+
+    },
+
+
+    function(decodedText){
+
+      if(scanLocked){
+
+        return;
+
+      }
+
+
+      processCode(
+        decodedText
+      );
+
+    },
+
+
+    function(){}
+
+  );
+
+
+  document
+    .getElementById(
+      'startButton'
+    )
+    .style.display =
+      'none';
+
+}
+
+
+/* =====================================================
+   STOP CAMERA
+===================================================== */
+
+async function stopCamera(){
+
+  if(scanner){
+
+    try{
+
+      await scanner.stop();
+
+    }
+    catch(e){}
+
+
+    try{
+
+      scanner.clear();
+
+    }
+    catch(e){}
+
+
+    scanner =
+      null;
+
+  }
+
+}
+
+
+/* =====================================================
+   PROCESS CODE
+===================================================== */
+
+function processCode(value){
+
+  const code =
+    String(
+      value || ''
+    )
+    .trim()
+    .toUpperCase();
+
+
+  if(!code){
+
+    return;
+
+  }
+
+
+  /*
+    Prevent repeated camera frames
+  */
+
+  scanLocked =
+    true;
+
+
+  const requestId =
+    Date.now() +
+    '-' +
+    Math.random()
+      .toString(36)
+      .slice(2);
+
+
+  pendingRequest =
+    requestId;
+
+
+  showPending(
+    code
+  );
+
+
+  if(
+    !window.opener ||
+    window.opener.closed
+  ){
+
+    showLocalError(
+      code,
+      'Scanner perlu dibuka melalui Smart Box Tracker.'
+    );
+
+    scanLocked =
+      false;
+
+    return;
+
+  }
+
+
+  window.opener.postMessage(
+
+    {
+
+      source:
+        'SMART_BOX_SCANNER',
+
+      action:
+        'SCAN',
+
+      requestId:
+        requestId,
+
+      mode:
+        MODE,
+
+      tripId:
+        TRIP_ID,
+
+      user:
+        USER,
+
+      code:
+        code
+
+    },
+
+    '*'
+
+  );
+
+
+  /*
+    Timeout jika sistem utama tidak reply
+  */
+
+  setTimeout(
+    function(){
+
+      if(
+        pendingRequest ===
+        requestId
+      ){
+
+        pendingRequest =
+          null;
+
+
+        showLocalError(
+          code,
+          'Tiada respons daripada sistem utama.'
+        );
+
+
+        scanLocked =
+          false;
+
+      }
+
+    },
+    10000
+  );
+
+}
+
+
+/* =====================================================
+   RECEIVE RESULT
+===================================================== */
+
+window.addEventListener(
+  'message',
+  function(event){
+
+    const data =
+      event.data;
+
+
+    if(
+      !data ||
+      data.source !==
+      'SMART_BOX_TRACKER' ||
+      data.action !==
+      'SCAN_RESULT'
+    ){
+
+      return;
+
+    }
+
+
+    if(
+      data.requestId !==
+      pendingRequest
+    ){
+
+      return;
+
+    }
+
+
+    pendingRequest =
+      null;
+
+
+    const result =
+      data.result || {};
+
+
+    const code =
+      result.code || '';
+
+
+    if(result.success){
+
+      successCount++;
+
+
+      showResult(
+        'success',
+        '✅ BERJAYA',
+        code,
+        result.message
+      );
+
+
+      beepSuccess();
+
+
+      addHistory(
+        code,
+        result.message,
+        true
+      );
+
+    }
+    else if(
+      result.type ===
+      'DUPLICATE'
+    ){
+
+      duplicateCount++;
+
+
+      showResult(
+        'warning',
+        '⚠️ SUDAH DISCAN',
+        code,
+        result.message
+      );
+
+
+      beepWarning();
+
+
+      addHistory(
+        code,
+        result.message,
+        false
+      );
+
+    }
+    else{
+
+      errorCount++;
+
+
+      showResult(
+        'error',
+        '❌ GAGAL',
+        code,
+        result.message
+      );
+
+
+      beepError();
+
+
+      addHistory(
+        code,
+        result.message,
+        false
+      );
+
+    }
+
+
+    updateMetrics();
+
+
+    /*
+      Kamera KEKAL terbuka.
+      Lepas 1.2 sec sedia untuk scan baru.
+    */
+
+    setTimeout(
+      function(){
+
+        scanLocked =
+          false;
+
+      },
+      1200
+    );
+
+  }
+);
+
+
+/* =====================================================
+   PENDING
+===================================================== */
+
+function showPending(
+  code
+){
+
+  const result =
+    document.getElementById(
+      'result'
+    );
+
+
+  result.className =
+    'result show warning';
+
+
+  document
+    .getElementById(
+      'resultMessage'
+    )
+    .textContent =
+      '⏳ Menyimpan rekod...';
+
+
+  document
+    .getElementById(
+      'resultCode'
+    )
+    .textContent =
+      code;
+
+}
+
+
+/* =====================================================
+   RESULT
+===================================================== */
+
+function showResult(
+  type,
+  title,
+  code,
+  message
+){
+
+  const result =
+    document.getElementById(
+      'result'
+    );
+
+
+  result.className =
+    'result show ' +
+    type;
+
+
+  document
+    .getElementById(
+      'resultMessage'
+    )
+    .innerHTML =
+      '<strong>' +
+      title +
+      '</strong><br>' +
+      escapeHtml(
+        message || ''
+      );
+
+
+  document
+    .getElementById(
+      'resultCode'
+    )
+    .textContent =
+      code;
+
+}
+
+
+/* =====================================================
+   ERROR
+===================================================== */
+
+function showLocalError(
+  code,
+  message
+){
+
+  errorCount++;
+
+
+  showResult(
+    'error',
+    '❌ GAGAL',
+    code,
+    message
+  );
+
+
+  updateMetrics();
+
+
+  beepError();
+
+}
+
+
+/* =====================================================
+   HISTORY
+===================================================== */
+
+function addHistory(
+  code,
+  message,
+  ok
+){
+
+  history.unshift({
+
+    code:
+      code,
+
+    message:
+      message,
+
+    ok:
+      ok
+
+  });
+
+
+  history =
+    history.slice(
+      0,
+      10
+    );
+
+
+  renderHistory();
+
+}
+
+
+function renderHistory(){
+
+  const holder =
+    document.getElementById(
+      'history'
+    );
+
+
+  if(!history.length){
+
+    return;
+
+  }
+
+
+  holder.innerHTML =
+    history.map(
+      function(item){
+
+        return `
+
+<div class="history-item">
+
+<div>
+
+<div class="history-code">
+${escapeHtml(item.code)}
+</div>
+
+<div style="
+  margin-top:2px;
+  font-size:10px;
+  color:#64748b;
+">
+${escapeHtml(item.message)}
+</div>
+
+</div>
+
+<div class="${
+  item.ok
+    ?
+    'ok'
+    :
+    'bad'
+}">
+${
+  item.ok
+    ?
+    '✓'
+    :
+    '!'
+}
+</div>
+
+</div>
+
+        `;
+
+      }
+    ).join('');
+
+}
+
+
+/* =====================================================
+   COUNTERS
+===================================================== */
+
+function updateMetrics(){
+
+  document
+    .getElementById(
+      'successCount'
+    )
+    .textContent =
+      successCount;
+
+
+  document
+    .getElementById(
+      'duplicateCount'
+    )
+    .textContent =
+      duplicateCount;
+
+
+  document
+    .getElementById(
+      'errorCount'
+    )
+    .textContent =
+      errorCount;
+
+}
+
+
+/* =====================================================
+   SOUND
+===================================================== */
+
+function tone(
+  frequency,
+  duration
+){
+
+  try{
+
+    const AudioContext =
+      window.AudioContext ||
+      window.webkitAudioContext;
+
+
+    const ctx =
+      new AudioContext();
+
+
+    const osc =
+      ctx.createOscillator();
+
+
+    const gain =
+      ctx.createGain();
+
+
+    gain.gain.value =
+      .08;
+
+
+    osc.frequency.value =
+      frequency;
+
+
+    osc.connect(gain);
+
+    gain.connect(
+      ctx.destination
+    );
+
+
+    osc.start();
+
+
+    setTimeout(
+      function(){
+
+        osc.stop();
+
+        ctx.close();
+
+      },
+      duration
+    );
+
+  }
+  catch(e){}
+
+}
+
+
+function beepSuccess(){
+
+  tone(
+    850,
+    90
+  );
+
+
+  setTimeout(
+    function(){
+
+      tone(
+        1150,
+        100
+      );
+
+    },
+    120
+  );
+
+
+  try{
+
+    navigator.vibrate(
+      100
+    );
+
+  }
+  catch(e){}
+
+}
+
+
+function beepWarning(){
+
+  tone(
+    500,
+    160
+  );
+
+}
+
+
+function beepError(){
+
+  tone(
+    200,
+    280
+  );
+
+}
+
+
+/* =====================================================
+   ESCAPE
+===================================================== */
+
+function escapeHtml(
+  value
+){
+
+  const div =
+    document.createElement(
+      'div'
+    );
+
+
+  div.textContent =
+    String(
+      value || ''
+    );
+
+
+  return div.innerHTML;
+
+}
+
+</script>
+
+</body>
+</html>
