@@ -336,9 +336,13 @@ let cameras = [];
 */
 let scanQueue = [];
 let requestMap = {};
-let processingQueue = false;
+let batchTimer = null;
+let batchInFlight = false;
 let recentCodes = new Map();
+
 const LOCAL_DUPLICATE_MS = 2500;
+const BATCH_SIZE = 5;
+const BATCH_WAIT_MS = 350;
 
 let successCount = 0;
 let pendingCount = 0;
@@ -897,58 +901,116 @@ function processCode(
 
 }
 
-function processNextQueue(){
+function scheduleBatch(){
 
   if(
-    processingQueue ||
+    batchInFlight ||
     !scanQueue.length
   ){
     return;
   }
 
-  processingQueue =
-    true;
+  if(
+    scanQueue.length >= BATCH_SIZE
+  ){
+    clearTimeout(batchTimer);
+    batchTimer = null;
+    sendBatch();
+    return;
+  }
 
-  const item =
-    scanQueue.shift();
+  if(!batchTimer){
+    batchTimer =
+      setTimeout(
+        function(){
+          batchTimer = null;
+          sendBatch();
+        },
+        BATCH_WAIT_MS
+      );
+  }
 
-  requestMap[
-    item.requestId
-  ] = item;
+}
+
+function processNextQueue(){
+  scheduleBatch();
+}
+
+function sendBatch(){
+
+  if(
+    batchInFlight ||
+    !scanQueue.length
+  ){
+    return;
+  }
+
+  clearTimeout(batchTimer);
+  batchTimer = null;
+  batchInFlight = true;
+
+  const items =
+    scanQueue.splice(
+      0,
+      BATCH_SIZE
+    );
+
+  const batchId =
+    Date.now() +
+    '-B-' +
+    Math.random()
+      .toString(36)
+      .slice(2);
+
+  items.forEach(
+    function(item){
+      requestMap[
+        item.requestId
+      ] = item;
+    }
+  );
 
   window.opener.postMessage(
     {
-      source:
-        'SMART_BOX_SCANNER',
-      action:
-        'SCAN',
-      requestId:
-        item.requestId,
-      mode:
-        MODE,
-      tripId:
-        TRIP_ID,
-      user:
-        USER,
-      code:
-        item.code
+      source:'SMART_BOX_SCANNER',
+      action:'SCAN_BATCH',
+      batchId:batchId,
+      mode:MODE,
+      tripId:TRIP_ID,
+      user:USER,
+      items:items.map(
+        function(item){
+          return {
+            requestId:item.requestId,
+            code:item.code
+          };
+        }
+      )
     },
     '*'
   );
 
   /*
-    Jika sistem utama tidak menjawab dalam 10 saat,
-    lepaskan queue supaya QR lain masih boleh diproses.
+    Satu timeout untuk seluruh batch.
   */
-  item.timeout =
-    setTimeout(
-      function(){
+  setTimeout(
+    function(){
 
-        if(
-          requestMap[
-            item.requestId
-          ]
-        ){
+      const unresolved =
+        items.filter(
+          function(item){
+            return !!requestMap[
+              item.requestId
+            ];
+          }
+        );
+
+      if(!unresolved.length){
+        return;
+      }
+
+      unresolved.forEach(
+        function(item){
 
           delete requestMap[
             item.requestId
@@ -962,33 +1024,34 @@ function processNextQueue(){
 
           errorCount++;
 
-          updateMetrics();
-
-          showResult(
-            'error',
-            '❌ TIMEOUT',
-            item.code,
-            'Tiada respons daripada sistem utama.'
-          );
-
           addHistory(
             item.code,
             'Timeout — tiada respons sistem.',
             false
           );
 
-          beepError();
-
-          processingQueue =
-            false;
-
-          processNextQueue();
-
         }
+      );
 
-      },
-      10000
-    );
+      updateMetrics();
+
+      if(unresolved.length){
+        showResult(
+          'error',
+          '❌ TIMEOUT',
+          unresolved[0].code,
+          unresolved.length +
+            ' QR tidak menerima respons sistem.'
+        );
+        beepError();
+      }
+
+      batchInFlight = false;
+      scheduleBatch();
+
+    },
+    10000
+  );
 
 }
 
@@ -999,128 +1062,157 @@ window.addEventListener(
   'message',
   function(event){
 
-    const data =
-      event.data;
+    const data = event.data;
 
     if(
       !data ||
-      data.source !==
-        'SMART_BOX_TRACKER' ||
-      data.action !==
-        'SCAN_RESULT'
+      data.source !== 'SMART_BOX_TRACKER' ||
+      !['SCAN_BATCH_RESULT','SCAN_RESULT'].includes(data.action)
     ){
       return;
     }
 
-    const item =
-      requestMap[
-        data.requestId
-      ];
+    const results =
+      data.action === 'SCAN_BATCH_RESULT'
+        ? (Array.isArray(data.results) ? data.results : [])
+        : [data.result || {}];
 
-    if(!item){
+    if(!results.length){
+      batchInFlight = false;
+      scheduleBatch();
       return;
     }
 
-    clearTimeout(
-      item.timeout
+    let lastResult = null;
+
+    results.forEach(
+      function(result){
+
+        const requestId =
+          String(result.requestId || '');
+
+        const item =
+          requestMap[requestId];
+
+        if(!item){
+          return;
+        }
+
+        delete requestMap[requestId];
+
+        pendingCount =
+          Math.max(
+            0,
+            pendingCount - 1
+          );
+
+        const code =
+          result.code ||
+          item.code ||
+          '';
+
+        lastResult = {
+          result:result,
+          code:code
+        };
+
+        if(result.success){
+
+          successCount++;
+
+          addHistory(
+            code,
+            result.message,
+            true
+          );
+
+        }
+        else if(
+          result.type === 'DUPLICATE'
+        ){
+
+          addHistory(
+            code,
+            result.message,
+            false
+          );
+
+        }
+        else{
+
+          errorCount++;
+
+          addHistory(
+            code,
+            result.message,
+            false
+          );
+
+        }
+
+      }
     );
-
-    delete requestMap[
-      data.requestId
-    ];
-
-    pendingCount =
-      Math.max(
-        0,
-        pendingCount - 1
-      );
-
-    const result =
-      data.result ||
-      {};
-
-    const code =
-      result.code ||
-      item.code ||
-      '';
-
-    if(
-      result.success
-    ){
-
-      successCount++;
-
-      showResult(
-        'success',
-        '✅ BERJAYA',
-        code,
-        result.message
-      );
-
-      beepSuccess();
-
-      addHistory(
-        code,
-        result.message,
-        true
-      );
-
-    }
-    else if(
-      result.type ===
-        'DUPLICATE'
-    ){
-
-      /*
-        Duplicate server bukan ralat kritikal.
-        Ia tidak menambah kiraan BERJAYA.
-      */
-      showResult(
-        'warning',
-        '⚠️ SUDAH DISCAN',
-        code,
-        result.message
-      );
-
-      beepWarning();
-
-      addHistory(
-        code,
-        result.message,
-        false
-      );
-
-    }
-    else{
-
-      errorCount++;
-
-      showResult(
-        'error',
-        '❌ GAGAL',
-        code,
-        result.message
-      );
-
-      beepError();
-
-      addHistory(
-        code,
-        result.message,
-        false
-      );
-
-    }
 
     updateMetrics();
 
-    processingQueue =
-      false;
+    if(lastResult){
+
+      const result =
+        lastResult.result;
+
+      const code =
+        lastResult.code;
+
+      if(result.success){
+
+        showResult(
+          'success',
+          result.fragile
+            ? '⚠️ BERJAYA — FRAGILE'
+            : '✅ BERJAYA',
+          code,
+          result.message
+        );
+
+        beepSuccess();
+
+      }
+      else if(
+        result.type === 'DUPLICATE'
+      ){
+
+        showResult(
+          'warning',
+          '⚠️ SUDAH DISCAN',
+          code,
+          result.message
+        );
+
+        beepWarning();
+
+      }
+      else{
+
+        showResult(
+          'error',
+          '❌ GAGAL',
+          code,
+          result.message
+        );
+
+        beepError();
+
+      }
+
+    }
+
+    batchInFlight = false;
 
     /*
-      Terus hantar QR seterusnya tanpa delay 650ms.
+      Jika pengguna sudah scan batch berikutnya,
+      terus hantar tanpa menunggu.
     */
-    processNextQueue();
+    scheduleBatch();
 
   }
 );
