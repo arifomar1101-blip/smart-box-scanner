@@ -37,6 +37,10 @@ body{
   background:linear-gradient(135deg,#4c1d95,#7c3aed,#db2777,#f97316);
 }
 
+.hero.checkin{
+  background:linear-gradient(135deg,#1d4ed8,#2563eb,#06b6d4);
+}
+
 .hero.arrive{
   background:linear-gradient(135deg,#075985,#0891b2,#10b981);
 }
@@ -334,8 +338,29 @@ let history = [];
    MODE
 ===================================================== */
 if(
-  MODE ===
-  'ARRIVE'
+  MODE === 'CHECKIN' ||
+  MODE === 'CHECK-IN'
+){
+
+  document.getElementById(
+    'hero'
+  ).classList.add(
+    'checkin'
+  );
+
+  document.getElementById(
+    'modeLabel'
+  ).textContent =
+    '📥 CHECK-IN';
+
+  document.getElementById(
+    'title'
+  ).textContent =
+    'Scan Check-In Kotak';
+
+}
+else if(
+  MODE === 'ARRIVE'
 ){
 
   document.getElementById(
@@ -347,7 +372,7 @@ if(
   document.getElementById(
     'modeLabel'
   ).textContent =
-    '📍 DESTINASI';
+    '📍 ARRIVAL';
 
   document.getElementById(
     'title'
