@@ -213,8 +213,8 @@ input,select{
     </div>
 
     <div class="metric">
-      <strong id="duplicateCount">0</strong>
-      <span>DUPLICATE</span>
+      <strong id="pendingCount">0</strong>
+      <span>MENUNGGU</span>
     </div>
 
     <div class="metric">
@@ -326,11 +326,22 @@ const FPS =
 
 let scanner = null;
 let cameras = [];
-let scanLocked = false;
-let pendingRequest = null;
+
+/*
+  RAPID SCAN
+  - Kamera tidak menunggu respons Apps Script.
+  - Setiap QR dimasukkan ke queue.
+  - Queue dihantar satu demi satu supaya rekod kekal tersusun.
+  - Kod yang sama ditahan seketika untuk elak frame kamera yang sama.
+*/
+let scanQueue = [];
+let requestMap = {};
+let processingQueue = false;
+let recentCodes = new Map();
+const LOCAL_DUPLICATE_MS = 2500;
 
 let successCount = 0;
-let duplicateCount = 0;
+let pendingCount = 0;
 let errorCount = 0;
 let history = [];
 
@@ -745,17 +756,9 @@ async function startSpecificCamera(
     },
 
     function(decodedText){
-
-      if(
-        scanLocked
-      ){
-        return;
-      }
-
       processCode(
         decodedText
       );
-
     },
 
     function(){}
@@ -809,44 +812,109 @@ function processCode(
     return;
   }
 
-  scanLocked =
-    true;
+  /*
+    Elak QR yang sama dibaca berulang kali kerana
+    ia masih berada di hadapan kamera.
+  */
+  const now = Date.now();
+  const lastSeen =
+    recentCodes.get(code) || 0;
 
-  const requestId =
-    Date.now() +
-    '-' +
-    Math.random()
-      .toString(36)
-      .slice(2);
+  if(
+    now - lastSeen <
+    LOCAL_DUPLICATE_MS
+  ){
+    return;
+  }
 
-  pendingRequest =
-    requestId;
+  recentCodes.set(
+    code,
+    now
+  );
 
-  showPending(
-    code
+  /*
+    Bersihkan cache kod lama.
+  */
+  recentCodes.forEach(
+    function(time,key){
+      if(
+        now - time >
+        15000
+      ){
+        recentCodes.delete(key);
+      }
+    }
   );
 
   if(
     !window.opener ||
     window.opener.closed
   ){
-
     showLocalError(
       code,
       'Scanner mesti dibuka daripada Smart Box Tracker.'
     );
-
-    setTimeout(
-      function(){
-        scanLocked =
-          false;
-      },
-      700
-    );
-
     return;
-
   }
+
+  const requestId =
+    now +
+    '-' +
+    Math.random()
+      .toString(36)
+      .slice(2);
+
+  scanQueue.push({
+    requestId:
+      requestId,
+    code:
+      code
+  });
+
+  pendingCount++;
+  updateMetrics();
+
+  /*
+    Maklum balas serta-merta.
+    Kamera terus boleh membaca QR berikutnya.
+  */
+  showResult(
+    'warning',
+    '⏳ DALAM QUEUE',
+    code,
+    'QR diterima. Sistem sedang menyimpan rekod.'
+  );
+
+  beepQueued();
+
+  addHistory(
+    code,
+    'Menunggu simpanan...',
+    true
+  );
+
+  processNextQueue();
+
+}
+
+function processNextQueue(){
+
+  if(
+    processingQueue ||
+    !scanQueue.length
+  ){
+    return;
+  }
+
+  processingQueue =
+    true;
+
+  const item =
+    scanQueue.shift();
+
+  requestMap[
+    item.requestId
+  ] = item;
 
   window.opener.postMessage(
     {
@@ -855,7 +923,7 @@ function processCode(
       action:
         'SCAN',
       requestId:
-        requestId,
+        item.requestId,
       mode:
         MODE,
       tripId:
@@ -863,38 +931,64 @@ function processCode(
       user:
         USER,
       code:
-        code
+        item.code
     },
     '*'
   );
 
   /*
-    Timeout response Apps Script.
+    Jika sistem utama tidak menjawab dalam 10 saat,
+    lepaskan queue supaya QR lain masih boleh diproses.
   */
-  setTimeout(
-    function(){
+  item.timeout =
+    setTimeout(
+      function(){
 
-      if(
-        pendingRequest ===
-        requestId
-      ){
+        if(
+          requestMap[
+            item.requestId
+          ]
+        ){
 
-        pendingRequest =
-          null;
+          delete requestMap[
+            item.requestId
+          ];
 
-        showLocalError(
-          code,
-          'Tiada respons daripada sistem utama.'
-        );
+          pendingCount =
+            Math.max(
+              0,
+              pendingCount - 1
+            );
 
-        scanLocked =
-          false;
+          errorCount++;
 
-      }
+          updateMetrics();
 
-    },
-    10000
-  );
+          showResult(
+            'error',
+            '❌ TIMEOUT',
+            item.code,
+            'Tiada respons daripada sistem utama.'
+          );
+
+          addHistory(
+            item.code,
+            'Timeout — tiada respons sistem.',
+            false
+          );
+
+          beepError();
+
+          processingQueue =
+            false;
+
+          processNextQueue();
+
+        }
+
+      },
+      10000
+    );
 
 }
 
@@ -911,22 +1005,35 @@ window.addEventListener(
     if(
       !data ||
       data.source !==
-      'SMART_BOX_TRACKER' ||
+        'SMART_BOX_TRACKER' ||
       data.action !==
-      'SCAN_RESULT'
+        'SCAN_RESULT'
     ){
       return;
     }
 
-    if(
-      data.requestId !==
-      pendingRequest
-    ){
+    const item =
+      requestMap[
+        data.requestId
+      ];
+
+    if(!item){
       return;
     }
 
-    pendingRequest =
-      null;
+    clearTimeout(
+      item.timeout
+    );
+
+    delete requestMap[
+      data.requestId
+    ];
+
+    pendingCount =
+      Math.max(
+        0,
+        pendingCount - 1
+      );
 
     const result =
       data.result ||
@@ -934,6 +1041,7 @@ window.addEventListener(
 
     const code =
       result.code ||
+      item.code ||
       '';
 
     if(
@@ -960,11 +1068,13 @@ window.addEventListener(
     }
     else if(
       result.type ===
-      'DUPLICATE'
+        'DUPLICATE'
     ){
 
-      duplicateCount++;
-
+      /*
+        Duplicate server bukan ralat kritikal.
+        Ia tidak menambah kiraan BERJAYA.
+      */
       showResult(
         'warning',
         '⚠️ SUDAH DISCAN',
@@ -1004,20 +1114,13 @@ window.addEventListener(
 
     updateMetrics();
 
+    processingQueue =
+      false;
+
     /*
-      Cepat sedia untuk kotak seterusnya.
-      650ms cukup untuk elakkan frame sama
-      dibaca berkali-kali.
+      Terus hantar QR seterusnya tanpa delay 650ms.
     */
-    setTimeout(
-      function(){
-
-        scanLocked =
-          false;
-
-      },
-      650
-    );
+    processNextQueue();
 
   }
 );
@@ -1183,9 +1286,9 @@ function updateMetrics(){
     successCount;
 
   document.getElementById(
-    'duplicateCount'
+    'pendingCount'
   ).textContent =
-    duplicateCount;
+    pendingCount;
 
   document.getElementById(
     'errorCount'
@@ -1252,6 +1355,14 @@ function tone(
   }
   catch(e){}
 
+}
+
+function beepQueued(){
+  tone(760,45);
+  try{
+    navigator.vibrate(35);
+  }
+  catch(e){}
 }
 
 function beepSuccess(){
