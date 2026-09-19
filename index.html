@@ -8,7 +8,7 @@
 >
 <meta name="theme-color" content="#4c1d95">
 
-<title>Smart Box QR Scanner</title>
+<title>NEXA QR Scanner</title>
 
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
@@ -856,7 +856,7 @@ function processCode(
   ){
     showLocalError(
       code,
-      'Scanner mesti dibuka daripada Smart Box Tracker.'
+      'Scanner mesti dibuka daripada NEXA.'
     );
     return;
   }
@@ -972,7 +972,7 @@ function sendBatch(){
 
   window.opener.postMessage(
     {
-      source:'SMART_BOX_SCANNER',
+      source:'NEXA_SCANNER',
       action:'SCAN_BATCH',
       batchId:batchId,
       mode:MODE,
@@ -1066,7 +1066,7 @@ window.addEventListener(
 
     if(
       !data ||
-      data.source !== 'SMART_BOX_TRACKER' ||
+      data.source !== 'NEXA_TRACKER' ||
       !['SCAN_BATCH_RESULT','SCAN_RESULT'].includes(data.action)
     ){
       return;
